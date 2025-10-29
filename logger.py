@@ -4,18 +4,18 @@ Provides a logger class for logging messages to both console and file.
 
 from __future__ import annotations
 
-import decorator as deco
-import env_variable as env
-import colored_print as cprint
-import python_util as putil
-import shutil
-
 import os, sys
 import datetime
 import uuid
 import time
 import logging
 import argparse
+import shutil
+
+import common_util.decorator as deco
+import common_util.env_variable as env
+import common_util.colored_print as cprint
+import common_util.python_util as putil
 
 _logger_argparser = argparse.ArgumentParser()
 
@@ -376,10 +376,10 @@ def exc_handler(exctype, value, tb):
     """
     Replaced exception handler, added the functionality to log the exception and raise a SIGABRT.
     """
-    # remove default stream handler so exceptions do not print to stderr
-    for handler in logging.root.handlers:
-        if isinstance(handler, logging.StreamHandler):
-            logging.root.removeHandler(handler)
+    # # remove default stream handler so exceptions do not print to stderr
+    # for handler in logging.root.handlers:
+    #     if isinstance(handler, logging.StreamHandler):
+    #         logging.root.removeHandler(handler)
 
     # invoke the default exception hook
     default_excepthook(exctype, value, tb)

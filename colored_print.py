@@ -1,6 +1,7 @@
 import io, logging
 from enum import Enum
-import env_variable as env
+
+import common_util.env_variable as env
 
 # respect NO_COLOR
 no_color = env.no_color()
