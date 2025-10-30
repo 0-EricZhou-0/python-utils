@@ -5,6 +5,8 @@ Include useful Python utilities that are not part of the standard library.
 import os, sys
 import hashlib
 import typing
+import time
+import re
 
 
 # NOTE [Python typing on SupportsRead and SupportsWrite]:
@@ -71,7 +73,7 @@ dependency_check_funcs = {
 }
 
 
-def check_dependency(test_type, dependency):
+def check_dependency(test_type, dependency) -> str | None:
     func = dependency_check_funcs.get(test_type)
     assert func is not None, f"Invalid type string {test_type}"
 
@@ -100,3 +102,81 @@ def find_device_for_path(path: str, device_name_only: bool = True) -> str | None
     except FileNotFoundError:
         return None
     return None
+
+
+# handle time formats like "2025-10-04T11:49:20.880Z"
+def parse_time(time_str: str, format) -> time.struct_time | None:
+    """
+    Parse a time string into a struct_time object.
+    @param time_str The time string to parse.
+    @param format The format string to use for parsing.
+    @return A struct_time object if parsing is successful, None otherwise.
+    """
+    try:
+        return time.strptime(time_str, format)
+    except ValueError:
+        return None
+
+
+def get_first_word(line: str) -> str:
+    """
+    Get the first word from a line.
+    The first word is defined as the first sequence of non-whitespace characters.
+    @param line The input line.
+    @return The first word in the line.
+    """
+    raise NotImplementedError()
+    leading_space_end = -1
+    for i, c in enumerate(line):
+        if c.isspace():
+            if leading_space_end < 0:
+                continue
+            return line[leading_space_end + 1 : i]
+        elif leading_space_end < 0:
+            leading_space_end = i - 1
+    return line[leading_space_end + 1 :]
+
+
+def get_first_word_re(line: str) -> str:
+    """
+    Get the first word from a line using a regular expression.
+    The first word is defined as the first sequence of non-whitespace characters.
+    @param line The input line.
+    @return The first word in the line.
+    """
+    match = re.match(r"^\s*(\S+)", line)
+    return match.group(1) if match else line
+
+
+def get_line_without_first_word(line: str) -> str:
+    """
+    Get the line without the first word.
+    The first word is defined as the first sequence of non-whitespace characters.
+    @param line The input line.
+    @return The line without the first word.
+    """
+    raise NotImplementedError()
+    leading_space_end = -1
+    second_space_end = -1
+    for i, c in enumerate(line):
+        if c.isspace():
+            if second_space_end < 0:
+                continue
+            return line[second_space_end + 1 : i]
+        else:
+            if leading_space_end < 0:
+                leading_space_end = i - 1
+            else:
+                second_space_end = i - 1
+    return line[leading_space_end + 1 :]
+
+
+def get_line_without_first_word_re(line: str) -> str:
+    """
+    Get the line without the first word using a regular expression.
+    The first word is defined as the first sequence of non-whitespace characters.
+    @param line The input line.
+    @return The line without the first word.
+    """
+    match = re.match(r"^\s*\S+\s*(.*\r?\n)", line)
+    return match.group(1) if match else line
