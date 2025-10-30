@@ -37,6 +37,7 @@ _logger_argparser.add_argument(
 _logger_args, _ = _logger_argparser.parse_known_args()
 _logger_default_log_dir = os.path.abspath(os.path.join(os.getcwd(), "log"))
 
+
 class LoggingCustomStreamFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None, style='%', validate=True, *, defaults=None):
         super().__init__(
@@ -222,7 +223,8 @@ class Logger:
                 *[
                     i
                     for i, c in enumerate(name)
-                    if i != 0 and c.isupper()
+                    if i != 0
+                    and c.isupper()
                     and (
                         (i > 0 and name[i - 1].islower())
                         or (i < len(name) and name[i + 1].islower())
@@ -234,8 +236,7 @@ class Logger:
                 [
                     f"{word[0].upper()}{word[1:]}"
                     for word in [
-                        name[split_idxs[i] : split_idxs[i + 1]]
-                        for i in range(len(split_idxs) - 1)
+                        name[split_idxs[i] : split_idxs[i + 1]] for i in range(len(split_idxs) - 1)
                     ]
                 ]
             )
@@ -263,7 +264,9 @@ class Logger:
             comp_dir = os.path.dirname(comp_dir)
         dir_name = " / ".join(dir_names[::-1])
 
-        comp_name = self.__convert_name_to_readable(" ".join(os.path.basename(comp_name).split(".")[:-1]))
+        comp_name = self.__convert_name_to_readable(
+            " ".join(os.path.basename(comp_name).split(".")[:-1])
+        )
 
         if len(dir_name) != 0:
             comp_name = f"{dir_name} / {comp_name}"
@@ -336,9 +339,11 @@ class Logger:
                 component logger.
             **kwargs: Additional keyword arguments to pass to the logger.
         """
-        header: str = self.get_component_logging_header() if comp_name is not None else ""
+        header: str = (
+            self.get_component_logging_header() % comp_name if comp_name is not None else ""
+        )
         logger: logging.Logger = self.__get_comp_logger_or_default(comp_name)
-        logger.log(level, header + msg, comp_name, *args, stacklevel=stacklevel, **kwargs)
+        logger.log(level, header + msg, *args, stacklevel=stacklevel, **kwargs)
 
 
 class CompLogger:
