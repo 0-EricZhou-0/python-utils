@@ -42,16 +42,14 @@ _logger_default_log_dir = os.path.abspath(os.path.join(os.getcwd(), "log"))
 class LoggingCustomStreamFormatter(logging.Formatter):
     def __init__(
         self,
-        fmt = None,
-        datefmt = None,
-        style:logging._FormatStyle = '%',
+        fmt=None,
+        datefmt=None,
+        style: logging._FormatStyle = '%',
         validate=True,
         *,
-        defaults=None
+        defaults=None,
     ):
-        super().__init__(
-            fmt=fmt, datefmt=datefmt, style=style, validate=validate
-        )
+        super().__init__(fmt=fmt, datefmt=datefmt, style=style, validate=validate)
         self.__formats = {
             level: f"{cprint.ColoredPrintSetting.MSG_COLOR_DICT[level]}{fmt}{cprint.ANSIColors.ENDC}"
             for level in cprint.ColoredPrintSetting.MSG_COLOR_DICT.keys()
@@ -194,7 +192,9 @@ class Logger:
             logger = self.__get_comp_logger(comp_name)
         return self.__default_logger if logger is None else logger
 
-    def __register_comp_logger(self, comp_name: str, level: typing.Optional[typing.Union[str, int]]) -> None:
+    def __register_comp_logger(
+        self, comp_name: str, level: typing.Optional[typing.Union[str, int]]
+    ) -> None:
         if comp_name in self.__registered_logger_names:
             return
         self.__registered_logger_names.add(comp_name)
@@ -206,7 +206,9 @@ class Logger:
         self.__default_logger.setLevel(level if level is not None else logging.NOTSET)
         return self.__default_logger.level
 
-    def set_component_logging_level(self, comp_name: str, level: typing.Optional[typing.Union[str, int]]) -> int:
+    def set_component_logging_level(
+        self, comp_name: str, level: typing.Optional[typing.Union[str, int]]
+    ) -> int:
         logger = self.__get_comp_logger(comp_name)
         assert logger is not None, comp_logger.log(
             logging.ERROR, f"Component {comp_name} not registered"
@@ -384,7 +386,7 @@ def addLoggingLevel(levelName, levelNum, methodName=None):
 
     To avoid accidental clobberings of existing attributes, this method will
     raise an `AttributeError` if the level name is already an attribute of the
-    `logging` module or if the method name is already present 
+    `logging` module or if the method name is already present
 
     Example
     -------
@@ -401,11 +403,11 @@ def addLoggingLevel(levelName, levelNum, methodName=None):
         methodName = levelName.lower()
 
     if hasattr(logging, levelName):
-       raise AttributeError('{} already defined in logging module'.format(levelName))
+        raise AttributeError('{} already defined in logging module'.format(levelName))
     if hasattr(logging, methodName):
-       raise AttributeError('{} already defined in logging module'.format(methodName))
+        raise AttributeError('{} already defined in logging module'.format(methodName))
     if hasattr(logging.getLoggerClass(), methodName):
-       raise AttributeError('{} already defined in logger class'.format(methodName))
+        raise AttributeError('{} already defined in logger class'.format(methodName))
 
     # This method was inspired by the answers to Stack Overflow post
     # http://stackoverflow.com/q/2183233/2988730, especially
@@ -413,6 +415,7 @@ def addLoggingLevel(levelName, levelNum, methodName=None):
     def logForLevel(self, message, *args, **kwargs):
         if self.isEnabledFor(levelNum):
             self._log(levelNum, message, args, **kwargs)
+
     def logToRoot(message, *args, **kwargs):
         logging.log(levelNum, message, *args, **kwargs)
 
@@ -420,6 +423,7 @@ def addLoggingLevel(levelName, levelNum, methodName=None):
     setattr(logging, levelName, levelNum)
     setattr(logging.getLoggerClass(), methodName, logForLevel)
     setattr(logging, methodName, logToRoot)
+
 
 addLoggingLevel("VERBOSE1", logging.INFO - 1, "verbose1")
 addLoggingLevel("VERBOSE2", logging.INFO - 2, "verbose2")

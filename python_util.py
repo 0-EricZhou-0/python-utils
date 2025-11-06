@@ -201,12 +201,15 @@ def parse_time(time_str: str, format: re.Pattern) -> typing.Optional[time.struct
     match = format.match(time_str)
     total_struct_len = 8
     if match and len(match.groups()) < total_struct_len:
-        return time.struct_time((
-            *map(int, match.groups()),
-            *(0 for _ in range(total_struct_len - len(match.groups()))),
-            -1 # daylight savings time flag always false
-        ))
+        return time.struct_time(
+            (
+                *map(int, match.groups()),
+                *(0 for _ in range(total_struct_len - len(match.groups()))),
+                -1,  # daylight savings time flag always false
+            )
+        )
     return None
+
 
 def parse_iso_time_format(time_str: str) -> typing.Optional[datetime.datetime]:
     try:
