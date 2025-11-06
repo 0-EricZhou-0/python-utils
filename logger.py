@@ -11,6 +11,7 @@ import time
 import logging
 import argparse
 import shutil
+import typing
 
 import common_util.decorator as deco
 import common_util.env_variable as env
@@ -39,19 +40,21 @@ _logger_default_log_dir = os.path.abspath(os.path.join(os.getcwd(), "log"))
 
 
 class LoggingCustomStreamFormatter(logging.Formatter):
-    def __init__(self, fmt=None, datefmt=None, style='%', validate=True, *, defaults=None):
+    def __init__(
+        self,
+        fmt = None,
+        datefmt = None,
+        style:logging._FormatStyle = '%',
+        validate=True,
+        *,
+        defaults=None
+    ):
         super().__init__(
-            fmt=fmt, datefmt=datefmt, style=style, validate=validate, defaults=defaults
+            fmt=fmt, datefmt=datefmt, style=style, validate=validate
         )
         self.__formats = {
             level: f"{cprint.ColoredPrintSetting.MSG_COLOR_DICT[level]}{fmt}{cprint.ANSIColors.ENDC}"
-            for level in (
-                logging.DEBUG,
-                logging.INFO,
-                logging.WARNING,
-                logging.ERROR,
-                logging.CRITICAL,
-            )
+            for level in cprint.ColoredPrintSetting.MSG_COLOR_DICT.keys()
         }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -178,20 +181,20 @@ class Logger:
     def dir_time_format(self) -> str:
         return self.__dir_time_format
 
-    def __get_comp_logger(self, comp_name: str) -> logging.Logger | None:
+    def __get_comp_logger(self, comp_name: str) -> typing.Optional[logging.Logger]:
         return (
             self.__default_logger.getChild(comp_name)
             if comp_name in self.__registered_logger_names
             else None
         )
 
-    def __get_comp_logger_or_default(self, comp_name: str | None) -> logging.Logger:
+    def __get_comp_logger_or_default(self, comp_name: typing.Optional[str]) -> logging.Logger:
         logger = None
         if comp_name is not None:
             logger = self.__get_comp_logger(comp_name)
         return self.__default_logger if logger is None else logger
 
-    def __register_comp_logger(self, comp_name: str, level: str | int | None) -> None:
+    def __register_comp_logger(self, comp_name: str, level: typing.Optional[typing.Union[str, int]]) -> None:
         if comp_name in self.__registered_logger_names:
             return
         self.__registered_logger_names.add(comp_name)
@@ -199,11 +202,11 @@ class Logger:
             level if level is not None else logging.NOTSET
         )
 
-    def set_default_logging_level(self, level: str | int | None) -> int:
+    def set_default_logging_level(self, level: typing.Optional[typing.Union[str, int]]) -> int:
         self.__default_logger.setLevel(level if level is not None else logging.NOTSET)
         return self.__default_logger.level
 
-    def set_component_logging_level(self, comp_name: str, level: str | int | None) -> int:
+    def set_component_logging_level(self, comp_name: str, level: typing.Optional[typing.Union[str, int]]) -> int:
         logger = self.__get_comp_logger(comp_name)
         assert logger is not None, comp_logger.log(
             logging.ERROR, f"Component {comp_name} not registered"
@@ -276,7 +279,7 @@ class Logger:
     def register_component(
         self,
         comp_name: str,
-        level: str | int | None = None,
+        level: typing.Optional[typing.Union[str, int]] = None,
         auto_readable: bool = True,
         name_level: int = 0,
     ) -> CompLogger:
@@ -317,7 +320,7 @@ class Logger:
     def get_component_logging_header(self) -> str:
         return f"<%s> "
 
-    def component_should_log(self, comp_name: str | None, level: int) -> bool:
+    def component_should_log(self, comp_name: typing.Optional[str], level: int) -> bool:
         logger = None
         if comp_name is not None:
             logger = self.__get_comp_logger(comp_name)
@@ -325,7 +328,7 @@ class Logger:
         return logger.isEnabledFor(level)
 
     def log(
-        self, comp_name: str | None, level: int, msg: str, *args, stacklevel=3, **kwargs
+        self, comp_name: typing.Optional[str], level: int, msg: str, *args, stacklevel=3, **kwargs
     ) -> None:
         """
         Log a message with the specified component name and logging level.

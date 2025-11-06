@@ -6,6 +6,8 @@ import os, sys
 import hashlib
 import typing
 import time
+import datetime
+import fcntl
 import re
 
 
@@ -15,7 +17,7 @@ import re
 # SupportsWrite is provided below.
 @typing.runtime_checkable
 class SupportsReadStr(typing.Protocol):
-    def read(self, size: int | None = -1, /) -> str: ...
+    def read(self, size: typing.Optional[int] = -1, /) -> str: ...
 
 
 @typing.runtime_checkable
@@ -73,7 +75,7 @@ dependency_check_funcs = {
 }
 
 
-def check_dependency(test_type, dependency) -> str | None:
+def check_dependency(test_type, dependency) -> typing.Optional[str]:
     func = dependency_check_funcs.get(test_type)
     assert func is not None, f"Invalid type string {test_type}"
 
@@ -81,7 +83,7 @@ def check_dependency(test_type, dependency) -> str | None:
         return os.path.realpath(dependency)
 
 
-def find_device_for_path(path: str, device_name_only: bool = True) -> str | None:
+def find_device_for_path(path: str, device_name_only: bool = True) -> typing.Optional[str]:
     path = os.path.realpath(path)
     if not os.path.exists(path):
         return None
@@ -104,20 +106,116 @@ def find_device_for_path(path: str, device_name_only: bool = True) -> str | None
     return None
 
 
+def display_options(
+    option_list: dict[str, str],
+    default_option: str,
+    print_long_descriptions: bool = False,
+    message: str = "",
+    *args: list[str],
+) -> str:
+    default_mark_str = "(default) "
+    option_list_copy = option_list.copy()
+    message = message.format(*args) if len(message) != 0 else ""
+    is_short_format = all(len(option) == 1 for option in option_list.keys())
+    assert default_option in option_list, "Default option must be in the option list."
+    assert all(
+        option.islower() for option in option_list.keys()
+    ), "All options must be in lowercase letters."
+    print_delimiter = "" if is_short_format else "/"
+    max_opt_len = max(len(option) for option in option_list.keys())
+    display_option_list = [
+        (
+            option
+            if option != default_option
+            else (option.upper() if is_short_format else f"[{option}]")
+        )
+        for option in option_list.keys()
+    ]
+    if print_long_descriptions:
+        for option, description in option_list_copy.items():
+            is_default_option = option == default_option
+            default_str = ""
+            if is_default_option:
+                default_str = default_mark_str
+                option = option.upper() if is_short_format else f"[{option}]"
+            message += (
+                f"\n{default_str:{len(default_mark_str)}s}{option:<{max_opt_len}s}: {description}"
+            )
+    display_options_str = print_delimiter.join(display_option_list)
+    message += f"\n  Selection" if print_long_descriptions else ""
+    message += f" ({display_options_str}) ? "
+    repeat_message = f"Invalid selection ({display_options_str}) ? "
+    while True:
+        selection = input(message).strip().lower()
+        if len(selection) == 0:
+            return default_option
+        if selection in option_list.keys():
+            return selection
+        message = repeat_message
+
+
+def display_yn_option(message: str = "", *args: list[str]) -> bool:
+    yn_options = {"y": "Confirm", "n": "Deny"}
+    selection = display_options(
+        yn_options, default_option="n", print_long_descriptions=False, message=message, *args
+    )
+    return selection == "y"
+
+
+def acquireLockFile(lock_file: str):
+    """
+    Acquire an exclusive lock on a file.
+    @param lock_file: The path to the lock file.
+    @return: A file descriptor for the locked file.
+    @raises OSError: If the lock cannot be acquired.
+    """
+    locked_file_descriptor = open(lock_file, "w+")
+    try:
+        # non-blocking and exclusive lock
+        fcntl.lockf(locked_file_descriptor, fcntl.LOCK_NB | fcntl.LOCK_EX)
+    except OSError as e:
+        printerr(
+            f"Could not get lock {lock_file} - {e.errno}: {e.strerror}.\n"
+            f"Unable to acquire the lock, is another process using it? "
+        )
+        raise e
+    return locked_file_descriptor
+
+
+def releaseLockFile(locked_file_descriptor):
+    """
+    Release the lock on a file and close the file descriptor.
+    @param locked_file_descriptor: The file descriptor for the locked file.
+    """
+    locked_file_descriptor.close()
+
+
 # handle time formats like "2025-10-04T11:49:20.880Z"
-def parse_time(time_str: str, format) -> time.struct_time | None:
+def parse_time(time_str: str, format: re.Pattern) -> typing.Optional[time.struct_time]:
     """
     Parse a time string into a struct_time object.
     @param time_str The time string to parse.
     @param format The format string to use for parsing.
     @return A struct_time object if parsing is successful, None otherwise.
     """
+    match = format.match(time_str)
+    total_struct_len = 8
+    if match and len(match.groups()) < total_struct_len:
+        return time.struct_time((
+            *match.groups(),
+            *(0 for _ in range(total_struct_len - len(match.groups()))),
+            -1 # daylight savings time flag always false
+        ))
+    return None
+
+def parse_iso_time_format(time_str: str) -> typing.Optional[datetime.datetime]:
     try:
-        return time.strptime(time_str, format)
+        return datetime.datetime.fromisoformat(time_str[:-1])
     except ValueError:
         return None
 
 
+# this is faster than get_first_word_re in practice for line with date info at the beginning of line
 def get_first_word(line: str) -> str:
     """
     Get the first word from a line.
@@ -125,16 +223,22 @@ def get_first_word(line: str) -> str:
     @param line The input line.
     @return The first word in the line.
     """
-    raise NotImplementedError()
+    # raise NotImplementedError()
     leading_space_end = -1
     for i, c in enumerate(line):
         if c.isspace():
-            if leading_space_end < 0:
+            if leading_space_end < -1:
+                # the space is a leading space, go on
                 continue
+            # the space first seen, perform substring
             return line[leading_space_end + 1 : i]
-        elif leading_space_end < 0:
+        elif leading_space_end < -1:
+            # encountered first non-space character
             leading_space_end = i - 1
     return line[leading_space_end + 1 :]
+
+
+first_word_re = re.compile(r"^\s*(\S+)")
 
 
 def get_first_word_re(line: str) -> str:
@@ -144,7 +248,7 @@ def get_first_word_re(line: str) -> str:
     @param line The input line.
     @return The first word in the line.
     """
-    match = re.match(r"^\s*(\S+)", line)
+    match = first_word_re.match(line)
     return match.group(1) if match else line
 
 
@@ -155,20 +259,22 @@ def get_line_without_first_word(line: str) -> str:
     @param line The input line.
     @return The line without the first word.
     """
-    raise NotImplementedError()
-    leading_space_end = -1
-    second_space_end = -1
+    leading_space_end = -2
+    leading_word_end = -1
     for i, c in enumerate(line):
         if c.isspace():
-            if second_space_end < 0:
-                continue
-            return line[second_space_end + 1 : i]
+            if leading_space_end >= -1:
+                leading_word_end = i - 1
         else:
-            if leading_space_end < 0:
+            if leading_space_end < -1:
                 leading_space_end = i - 1
-            else:
-                second_space_end = i - 1
-    return line[leading_space_end + 1 :]
+            elif leading_word_end >= 0:
+                return line[i:]
+    return ""
+
+
+# This is faster than get_line_without_first_word in practice for long lines
+line_without_first_word_re = re.compile(r"^\s*\S+\s*(.*\r?\n)")
 
 
 def get_line_without_first_word_re(line: str) -> str:
@@ -178,5 +284,5 @@ def get_line_without_first_word_re(line: str) -> str:
     @param line The input line.
     @return The line without the first word.
     """
-    match = re.match(r"^\s*\S+\s*(.*\r?\n)", line)
+    match = line_without_first_word_re.match(line)
     return match.group(1) if match else line

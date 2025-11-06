@@ -3,12 +3,13 @@ Provides functions to check and manipulate environment variables.
 """
 
 import os, functools
+import typing
 
 IS_DEBUG_ENVIRON = "DEBUG"
 NO_COLOR_ENVIRON = "NO_COLOR"
 
 
-def check_env(env: str) -> str | None:
+def check_env(env: str) -> typing.Optional[str]:
     """
     Check if the environment variable exists and return its value.
     @param env The name of the environment variable to check.
@@ -48,7 +49,7 @@ def check_env_true(env: str) -> bool:
     return (is_digit and int(val) != 0) or (not is_digit and len(val) != 0)
 
 
-def set_env(env: str, val: str | int) -> None | str:
+def set_env(env: str, val: typing.Union[str, int]) -> typing.Optional[str]:
     """
     Set an environment variable to a value. If the environment variable already exists, return its
     previous value.
