@@ -277,7 +277,7 @@ def get_line_without_first_word(line: str) -> str:
 
 
 # This is faster than get_line_without_first_word in practice for long lines
-line_without_first_word_re = re.compile(r"^\s*\S+\s*(.*\r?\n)")
+line_without_first_word_re = re.compile(r"^\s*\S+\s(.*\r?\n)")
 
 
 def get_line_without_first_word_re(line: str) -> str:
