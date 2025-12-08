@@ -9,6 +9,9 @@ import time
 import datetime
 import fcntl
 import re
+import heapq
+import linecache
+import tracemalloc
 
 
 # NOTE [Python typing on SupportsRead and SupportsWrite]:
@@ -199,17 +202,33 @@ def parse_time(time_str: str, format: re.Pattern) -> typing.Optional[time.struct
     @return A struct_time object if parsing is successful, None otherwise.
     """
     match = format.match(time_str)
-    total_struct_len = 8
-    if match and len(match.groups()) < total_struct_len:
+    total_struct_len = 6
+    if match and len(match.groups()) <= total_struct_len:
         return time.struct_time(
             (
                 *map(int, match.groups()),
                 *(0 for _ in range(total_struct_len - len(match.groups()))),
-                -1,  # daylight savings time flag always false
+                0, # ignore tm_wday
+                0, # ignore tm_yday
+                -1, # ignore daylight savings time
             )
         )
     return None
 
+def parse_time_datetime(
+    time_str: str,
+    format: re.Pattern,
+    is_millisecond: bool = True,
+    tzinfo: datetime.tzinfo = datetime.timezone.utc,
+) -> typing.Optional[datetime.datetime]:
+    match = format.match(time_str)
+    total_struct_len = 7
+    if match and len(match.groups()) <= total_struct_len:
+        matched_groups = list(map(int, match.groups()))
+        if len(match.groups()) == 7 and is_millisecond:
+            matched_groups[6] *= 1000  # convert milliseconds to microseconds
+        return datetime.datetime(*matched_groups, tzinfo=tzinfo)
+    return None
 
 def parse_iso_time_format(time_str: str) -> typing.Optional[datetime.datetime]:
     try:
@@ -289,3 +308,78 @@ def get_line_without_first_word_re(line: str) -> str:
     """
     match = line_without_first_word_re.match(line)
     return match.group(1) if match else line
+
+
+def common_prefix_two(s1: str, s2: str):
+    for i, c in enumerate(s1):
+        if c != s2[i]:
+            return s1[:i]
+    return s1
+
+
+def common_prefix(m: list[str]):
+    """
+    Reference: https://stackoverflow.com/questions/6718196/determine-the-common-prefix-of-multiple-strings
+    """
+    m = [s for s in m if len(s) > 0]
+    if not m or len(m) == 1:
+        return ""
+    s1 = min(m)
+    s2 = max(m)
+    for i, c in enumerate(s1):
+        if c != s2[i]:
+            return s1[:i]
+    return s1
+
+
+def value_distribute(
+    lst: typing.Sequence,
+    n: int,
+    value_func: typing.Callable[[typing.Any], int]
+) -> list[list]:
+    lists = [[] for _ in range(n)]
+    totals = [(0, i) for i in range(n)]
+    heapq.heapify(totals)
+    for item in sorted(lst, key=value_func):
+        value = value_func(item)
+        total, index = heapq.heappop(totals)
+        lists[index].append(item)
+        heapq.heappush(totals, (total + value, index))
+    return lists
+
+
+def get_dir_content_size(path: str):
+    return {
+        os.path.join(path, file): os.stat(os.path.join(path, file)).st_size
+        for file in os.listdir(path)
+    }
+
+
+def get_dir_total_size(path: str):
+    return sum(get_dir_content_size(path).values())
+
+
+def display_top(snapshot, key_type='lineno', limit=3):
+    snapshot = snapshot.filter_traces((
+        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+        tracemalloc.Filter(False, "<unknown>"),
+    ))
+    top_stats = snapshot.statistics(key_type)
+
+    print("Top %s lines" % limit)
+    for index, stat in enumerate(top_stats[:limit], 1):
+        frame = stat.traceback[0]
+        # replace "/path/to/module/file.py" with "module/file.py"
+        filename = os.sep.join(frame.filename.split(os.sep)[-2:])
+        print("#%s: %s:%s: %.1f KiB"
+              % (index, filename, frame.lineno, stat.size / 1024))
+        line = linecache.getline(frame.filename, frame.lineno).strip()
+        if line:
+            print('    %s' % line)
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        print("%s other: %.1f KiB" % (len(other), size / 1024))
+    total = sum(stat.size for stat in top_stats)
+    print("Total allocated size: %.1f KiB" % (total / 1024))
