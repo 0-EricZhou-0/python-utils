@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io, logging
-import sys
 import enum
 
 import common_util.env_variable as env
@@ -117,6 +116,12 @@ class ColoredPrintSetting:
         logging.INFO:     ANSICompose.compose(ANSICompose.FORE_BLUE),
         logging.DEBUG:    ANSICompose.compose(ANSICompose.FORE_CYAN),
     }
+
+
+def hprintf(ansi_color_str: typing.Union[ANSICompose, list[ANSICompose]], *args, **kwargs) -> None:
+    if not isinstance(ansi_color_str, list):
+        ansi_color_str = [ansi_color_str]
+    return pprintf(ANSICompose.compose(*ansi_color_str), *args, **kwargs)
 
 
 def pprintf(ansi_color_str: typing.Union[str, ANSIColors], *args, **kwargs) -> None:
