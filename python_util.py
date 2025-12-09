@@ -14,6 +14,9 @@ import linecache
 import tracemalloc
 
 
+StrBytesT = typing.TypeVar("StrBytesT", str, bytes)
+
+
 # NOTE [Python typing on SupportsRead and SupportsWrite]:
 # The typing module does not provide SupportsRead and SupportsWrite instances for runtime type
 # checking, a custom implementation is provided below. The str version for SupportsRead and
@@ -216,8 +219,8 @@ def parse_time(time_str: str, format: re.Pattern) -> typing.Optional[time.struct
     return None
 
 def parse_time_datetime(
-    time_str: str,
-    format: re.Pattern,
+    time_str: StrBytesT,
+    format: re.Pattern[StrBytesT],
     is_millisecond: bool = True,
     tzinfo: datetime.tzinfo = datetime.timezone.utc,
 ) -> typing.Optional[datetime.datetime]:
@@ -317,13 +320,13 @@ def common_prefix_two(s1: str, s2: str):
     return s1
 
 
-def common_prefix(m: list[str]):
+def common_prefix(m: list[StrBytesT]) -> StrBytesT:
     """
     Reference: https://stackoverflow.com/questions/6718196/determine-the-common-prefix-of-multiple-strings
     """
     m = [s for s in m if len(s) > 0]
     if not m or len(m) == 1:
-        return ""
+        return type(m[0])()
     s1 = min(m)
     s2 = max(m)
     for i, c in enumerate(s1):
@@ -332,7 +335,7 @@ def common_prefix(m: list[str]):
     return s1
 
 
-def value_distribute(
+def sublist_creator(
     lst: typing.Sequence,
     n: int,
     value_func: typing.Callable[[typing.Any], int]
@@ -340,24 +343,24 @@ def value_distribute(
     lists = [[] for _ in range(n)]
     totals = [(0, i) for i in range(n)]
     heapq.heapify(totals)
-    for item in sorted(lst, key=value_func):
+    for item in lst:
         value = value_func(item)
         total, index = heapq.heappop(totals)
         lists[index].append(item)
         heapq.heappush(totals, (total + value, index))
     return lists
 
+def get_dir_total_size(path: str):
+    return sum([
+        os.stat(os.path.join(path, file)).st_size
+        for file in os.listdir(path)
+    ])
 
 def get_dir_content_size(path: str):
     return {
         os.path.join(path, file): os.stat(os.path.join(path, file)).st_size
         for file in os.listdir(path)
     }
-
-
-def get_dir_total_size(path: str):
-    return sum(get_dir_content_size(path).values())
-
 
 def display_top(snapshot, key_type='lineno', limit=3):
     snapshot = snapshot.filter_traces((
