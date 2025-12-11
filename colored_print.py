@@ -118,6 +118,14 @@ class ColoredPrintSetting:
     }
 
 
+def annotate(properties: typing.Union[ANSICompose, list[ANSICompose]], text: str, force: bool = False) -> str:
+    if no_color and not force:
+        return text
+    if not isinstance(properties, list):
+        properties = [properties]
+    return f"{ANSICompose.compose(*properties)}{text}{ANSICompose.ENDC}"
+
+
 def hprintf(ansi_color_str: typing.Union[ANSICompose, list[ANSICompose]], *args, **kwargs) -> None:
     if not isinstance(ansi_color_str, list):
         ansi_color_str = [ansi_color_str]
