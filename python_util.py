@@ -320,12 +320,14 @@ def common_prefix_two(s1: str, s2: str):
     return s1
 
 
-def common_prefix(m: list[StrBytesT]) -> StrBytesT:
+def common_prefix(m: list[StrBytesT]) -> typing.Optional[StrBytesT]:
     """
     Reference: https://stackoverflow.com/questions/6718196/determine-the-common-prefix-of-multiple-strings
     """
     m = [s for s in m if len(s) > 0]
-    if not m or len(m) == 1:
+    if len(m) == 0:
+        return None
+    if len(m) == 1:
         return type(m[0])()
     s1 = min(m)
     s2 = max(m)
@@ -350,17 +352,20 @@ def sublist_creator(
         heapq.heappush(totals, (total + value, index))
     return lists
 
+
 def get_dir_total_size(path: str):
     return sum([
         os.stat(os.path.join(path, file)).st_size
         for file in os.listdir(path)
     ])
 
+
 def get_dir_content_size(path: str):
     return {
         os.path.join(path, file): os.stat(os.path.join(path, file)).st_size
         for file in os.listdir(path)
     }
+
 
 def display_top(snapshot, key_type='lineno', limit=3):
     snapshot = snapshot.filter_traces((
