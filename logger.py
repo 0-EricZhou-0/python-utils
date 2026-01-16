@@ -179,22 +179,20 @@ class Logger:
     def dir_time_format(self) -> str:
         return self.__dir_time_format
 
-    def __get_comp_logger(self, comp_name: str) -> typing.Optional[logging.Logger]:
+    def __get_comp_logger(self, comp_name: str) -> logging.Logger | None:
         return (
             self.__default_logger.getChild(comp_name)
             if comp_name in self.__registered_logger_names
             else None
         )
 
-    def __get_comp_logger_or_default(self, comp_name: typing.Optional[str]) -> logging.Logger:
+    def __get_comp_logger_or_default(self, comp_name: str | None) -> logging.Logger:
         logger = None
         if comp_name is not None:
             logger = self.__get_comp_logger(comp_name)
         return self.__default_logger if logger is None else logger
 
-    def __register_comp_logger(
-        self, comp_name: str, level: typing.Optional[typing.Union[str, int]]
-    ) -> None:
+    def __register_comp_logger(self, comp_name: str, level: str | int | None) -> None:
         if comp_name in self.__registered_logger_names:
             return
         self.__registered_logger_names.add(comp_name)
@@ -202,13 +200,11 @@ class Logger:
             level if level is not None else logging.NOTSET
         )
 
-    def set_default_logging_level(self, level: typing.Optional[typing.Union[str, int]]) -> int:
+    def set_default_logging_level(self, level: str | int | None) -> int:
         self.__default_logger.setLevel(level if level is not None else logging.NOTSET)
         return self.__default_logger.level
 
-    def set_component_logging_level(
-        self, comp_name: str, level: typing.Optional[typing.Union[str, int]]
-    ) -> int:
+    def set_component_logging_level(self, comp_name: str, level: str | int | None) -> int:
         logger = self.__get_comp_logger(comp_name)
         assert logger is not None, comp_logger.log(
             logging.ERROR, f"Component {comp_name} not registered"
@@ -281,7 +277,7 @@ class Logger:
     def register_component(
         self,
         comp_name: str,
-        level: typing.Optional[typing.Union[str, int]] = None,
+        level: str | int | None = None,
         auto_readable: bool = True,
         name_level: int = 0,
     ) -> CompLogger:
@@ -322,7 +318,7 @@ class Logger:
     def get_component_logging_header(self) -> str:
         return f"<%s> "
 
-    def component_should_log(self, comp_name: typing.Optional[str], level: int) -> bool:
+    def component_should_log(self, comp_name: str | None, level: int) -> bool:
         logger = None
         if comp_name is not None:
             logger = self.__get_comp_logger(comp_name)
@@ -330,7 +326,7 @@ class Logger:
         return logger.isEnabledFor(level)
 
     def log(
-        self, comp_name: typing.Optional[str], level: int, msg: str, *args, stacklevel=3, **kwargs
+        self, comp_name: str | None, level: int, msg: str, *args, stacklevel=3, **kwargs
     ) -> None:
         """
         Log a message with the specified component name and logging level.

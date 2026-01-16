@@ -91,10 +91,7 @@ class ANSIColors:
     MAGENTA = ANSICompose.compose(ANSICompose.FORE_MAGENTA)
     CYAN    = ANSICompose.compose(ANSICompose.FORE_CYAN)
     WHITE   = ANSICompose.compose(ANSICompose.FORE_WHITE)
-
-    BOLD_RED = ANSICompose.compose(ANSICompose.FORE_RED, ANSICompose.BOLD)
-
-    ENDC = ANSICompose.compose(ANSICompose.ENDC)
+    ENDC    = ANSICompose.compose(ANSICompose.ENDC)
 
 
 class MessageLevel(enum.Enum):
@@ -118,21 +115,21 @@ class ColoredPrintSetting:
     }
 
 
-def annotate(properties: typing.Union[ANSICompose, list[ANSICompose]], text: str, force: bool = False) -> str:
+def annotate(properties: ANSICompose | tuple[ANSICompose], text: str, force: bool = False) -> str:
     if no_color and not force:
         return text
-    if not isinstance(properties, list):
-        properties = [properties]
+    if isinstance(properties, ANSICompose):
+        properties = (properties, )
     return f"{ANSICompose.compose(*properties)}{text}{ANSICompose.ENDC}"
 
 
-def hprintf(ansi_color_str: typing.Union[ANSICompose, list[ANSICompose]], *args, **kwargs) -> None:
-    if not isinstance(ansi_color_str, list):
-        ansi_color_str = [ansi_color_str]
-    return pprintf(ANSICompose.compose(*ansi_color_str), *args, **kwargs)
+def hprintf(ansi_properties: ANSICompose | tuple[ANSICompose], *args, **kwargs) -> None:
+    if isinstance(ansi_properties, ANSICompose):
+        ansi_properties = (ansi_properties, )
+    return pprintf(ANSICompose.compose(*ansi_properties), *args, **kwargs)
 
 
-def pprintf(ansi_color_str: typing.Union[str, ANSIColors], *args, **kwargs) -> None:
+def pprintf(ansi_color_str: str | ANSIColors, *args, **kwargs) -> None:
     if no_color:
         print(*args, **kwargs)
     else:
@@ -177,8 +174,8 @@ def dprintf(*args, **kwargs):
     )
 
 
-def __check_level(level: typing.Union[str, int]) -> int:
-    # copying logging._checkLevel
+def __check_level(level: str | int) -> int:
+    # copying logging._checkLevel, this is probing to logging module internals
     if isinstance(level, int):
         rv = level
     elif str(level) == level:
@@ -190,8 +187,6 @@ def __check_level(level: typing.Union[str, int]) -> int:
     return rv
 
 
-def lprintf(level: typing.Union[str, int], *args, **kwargs):
+def lprintf(level: str | int, *args, **kwargs):
     """First arg is logging level Argument list same as print"""
-    return pprintf(
-        ColoredPrintSetting.MSG_COLOR_DICT[__check_level(level)], *args, **kwargs
-    )
+    return pprintf(ColoredPrintSetting.MSG_COLOR_DICT[__check_level(level)], *args, **kwargs)

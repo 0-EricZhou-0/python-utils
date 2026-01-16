@@ -223,7 +223,7 @@ def parse_time_datetime(
     format: re.Pattern[StrBytesT],
     is_millisecond: bool = True,
     tzinfo: datetime.tzinfo = datetime.timezone.utc,
-) -> typing.Optional[datetime.datetime]:
+) -> datetime.datetime | None:
     match = format.match(time_str)
     total_struct_len = 7
     if match and len(match.groups()) <= total_struct_len:
