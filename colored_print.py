@@ -10,16 +10,21 @@ import typing
 no_color = env.no_color()
 
 def color_settings(force_color: bool = False):
+    """ Set global color settings. """
     global no_color
     no_color = force_color
 
 def isatty(stream: typing.TextIO) -> bool:
+    """ Check if the stream is a TTY. """
     try:
         return stream.isatty()
     except AttributeError:
         return False
 
 class ANSICompose(enum.Enum):
+    """
+    ANSI escape code components and ANSI escape sequences composing helpers.
+    """
     @staticmethod
     def compose(*args: ANSICompose | int | str) -> str:
         return f"\033[{';'.join(map(str, args))}m"
@@ -83,6 +88,9 @@ class ANSICompose(enum.Enum):
     BACK_TRANS   = 49
 
 class ANSIColors:
+    """
+    ANSI color codes for convenience.
+    """
     BLACK   = ANSICompose.compose(ANSICompose.FORE_BLACK)
     RED     = ANSICompose.compose(ANSICompose.FORE_RED)
     GREEN   = ANSICompose.compose(ANSICompose.FORE_GREEN)
@@ -94,18 +102,10 @@ class ANSIColors:
     ENDC    = ANSICompose.compose(ANSICompose.ENDC)
 
 
-class MessageLevel(enum.Enum):
-    EMERG   = 0
-    ALERT   = 1
-    CRIT    = 2  # critical conditions
-    ERR     = 3  # error conditions
-    WARNING = 4  # warning conditions
-    NOTICE  = 5  # normal but significant condition
-    INFO    = 6  # informational
-    DEBUG   = 7  # debug-level messages
-
-
 class ColoredPrintSetting:
+    """
+    Mapping from logging levels to ANSI color codes for colored logging console output.
+    """
     MSG_COLOR_DICT: dict[int, str] = {
         logging.CRITICAL: ANSICompose.compose(ANSICompose.FORE_RED, ANSICompose.BOLD),
         logging.ERROR:    ANSICompose.compose(ANSICompose.FORE_RED),
@@ -116,6 +116,14 @@ class ColoredPrintSetting:
 
 
 def annotate(properties: ANSICompose | tuple[ANSICompose], text: str, force: bool = False) -> str:
+    """
+    Annotate the text with given ANSI properties.
+
+    :param properties: ANSI properties to apply
+    :param text: text to annotate
+    :param force: if True, apply colors even if NO_COLOR is set
+    :return: annotated text
+    """
     if no_color and not force:
         return text
     if isinstance(properties, ANSICompose):
@@ -123,13 +131,10 @@ def annotate(properties: ANSICompose | tuple[ANSICompose], text: str, force: boo
     return f"{ANSICompose.compose(*properties)}{text}{ANSICompose.ENDC}"
 
 
-def hprintf(ansi_properties: ANSICompose | tuple[ANSICompose], *args, **kwargs) -> None:
-    if isinstance(ansi_properties, ANSICompose):
-        ansi_properties = (ansi_properties, )
-    return pprintf(ANSICompose.compose(*ansi_properties), *args, **kwargs)
-
-
 def pprintf(ansi_color_str: str | ANSIColors, *args, **kwargs) -> None:
+    """
+    Pretty printf, print with composed ANSI color string, respect module-level no_color setting.
+    """
     if no_color:
         print(*args, **kwargs)
     else:
@@ -139,36 +144,43 @@ def pprintf(ansi_color_str: str | ANSIColors, *args, **kwargs) -> None:
             print(f"{ansi_color_str}{output_str.getvalue()}{ANSIColors.ENDC}", **kwargs)
 
 
+def hprintf(ansi_properties: ANSICompose | tuple[ANSICompose], *args, **kwargs) -> None:
+    """ Print with ANSI properties """
+    if isinstance(ansi_properties, ANSICompose):
+        ansi_properties = (ansi_properties, )
+    return pprintf(ANSICompose.compose(*ansi_properties), *args, **kwargs)
+
+
 def cprintf(*args, **kwargs):
-    """Argument list same as print"""
+    """ Critical printf, argument list same as print """
     return pprintf(
         ColoredPrintSetting.MSG_COLOR_DICT[logging.CRITICAL], *args, **kwargs
     )
 
 
 def eprintf(*args, **kwargs):
-    """Argument list same as print"""
+    """ Error printf, argument list same as print """
     return pprintf(
         ColoredPrintSetting.MSG_COLOR_DICT[logging.ERROR], *args, **kwargs
     )
 
 
 def wprintf(*args, **kwargs):
-    """Argument list same as print"""
+    """ Warning printf, argument list same as print """
     return pprintf(
         ColoredPrintSetting.MSG_COLOR_DICT[logging.WARNING], *args, **kwargs
     )
 
 
 def iprintf(*args, **kwargs):
-    """Argument list same as print"""
+    """ Info printf, argument list same as print """
     return pprintf(
         ColoredPrintSetting.MSG_COLOR_DICT[logging.INFO], *args, **kwargs
     )
 
 
 def dprintf(*args, **kwargs):
-    """Argument list same as print"""
+    """ Debug printf, argument list same as print """
     return pprintf(
         ColoredPrintSetting.MSG_COLOR_DICT[logging.DEBUG], *args, **kwargs
     )
@@ -188,5 +200,10 @@ def __check_level(level: str | int) -> int:
 
 
 def lprintf(level: str | int, *args, **kwargs):
-    """First arg is logging level Argument list same as print"""
+    """
+    Log printf, print with color according to logging level
+
+    :param level: logging level
+    :param args, kwargs: same as printf
+    """
     return pprintf(ColoredPrintSetting.MSG_COLOR_DICT[__check_level(level)], *args, **kwargs)
